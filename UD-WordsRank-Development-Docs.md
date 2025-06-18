@@ -1,26 +1,26 @@
 # WordsRank - Local AI Platform Monitoring Tool
 
 ## Table of Contents
-Project Overview
-System Architecture
-Technology Stack
-Database Design
-Backend API Architecture
-Frontend Application Structure
-AI Platform Integrations
-User Interface Specifications
-Development Setup
-Error Handling & Offline Mode
-Backup & Data Export
-Testing Strategy
-Deployment & Setup
+- Project Overview
+- System Architecture
+- Technology Stack
+- Database Design
+- Backend API Architecture
+- Frontend Application Structure
+- AI Platform Integrations
+- User Interface Specifications
+- Development Setup
+- Error Handling & Offline Mode
+- Backup & Data Export
+- Testing Strategy
+- Deployment & Setup
 
 ## Project Overview
 ### Business Purpose
-WordsRank is a local AI platform monitoring tool designed for freelancers and consultants who need to track how their clients' brands and competitors appear in AI-powered search responses across ChatGPT, Perplexity, Gemini, and Claude. It provides actionable insights for content strategy and competitive intelligence without the complexity of multi-user SaaS infrastructure.
+WordsRank is a local AI platform monitoring tool designed for freelancers and consultants who need to track how their clients' brands and competitors appear in AI-powered search responses across Perplexity, Gemini, and Claude. It provides actionable insights for content strategy and competitive intelligence without the complexity of multi-user SaaS infrastructure.
 
 ### Core Value Proposition
-- Client Brand Monitoring: Track client brand mentions across 4 major AI platforms
+- Client Brand Monitoring: Track client brand mentions across 3 major AI platforms with live search capabilities
 - Competitive Intelligence: Understand how competitors rank in AI responses for strategic advantage
 - Content Gap Analysis: Identify opportunities to improve client AI platform visibility
 - Professional Reporting: Generate client-ready reports with insights and recommendations
@@ -33,7 +33,7 @@ WordsRank is a local AI platform monitoring tool designed for freelancers and co
 
 ### Key Features (Optimized for Freelancer Use)
 1. Dashboard Analytics: Visual overview of brand performance across AI platforms
-2. AI Platform Monitoring: Individual tracking for ChatGPT, Perplexity, Gemini, and Claude
+2. AI Platform Monitoring: Individual tracking for Perplexity, Gemini, and Claude
 3. Search Terms Management: Monitor specific keywords and brand terms for multiple clients
 4. Competitive Analysis: Track competitor performance and identify content gaps
 5. Website & Brand Management: Configure multiple client brands and websites to monitor
@@ -69,7 +69,6 @@ WordsRank is a local AI platform monitoring tool designed for freelancers and co
 │  └── Local File Storage                                    │
 ├─────────────────────────────────────────────────────────────┤
 │  AI Platform APIs                                          │
-│  ├── OpenAI API (ChatGPT)                                  │
 │  ├── Anthropic API (Claude)                                │
 │  ├── Google AI API (Gemini)                                │
 │  └── Perplexity API                                        │
@@ -115,7 +114,6 @@ Dashboard Updates → Report Generation → Client Deliverables
 ### AI Platform SDKs
 ```json
 {
-  "openai": "openai@4.0+",
   "anthropic": "@anthropic-ai/sdk",
   "google": "@google-ai/generativelanguage",
   "perplexity": "Custom HTTP client"
@@ -134,7 +132,7 @@ CREATE TABLE websites (
     industry TEXT,
     description TEXT,
     is_active INTEGER DEFAULT 1,
-    platforms_monitored TEXT DEFAULT '[]', -- JSON array ['chatgpt', 'perplexity', etc.]
+    platforms_monitored TEXT DEFAULT '[]', -- JSON array ['perplexity', 'gemini', 'claude']
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -166,7 +164,7 @@ CREATE TABLE search_terms (
 CREATE TABLE ai_mentions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     search_term_id INTEGER REFERENCES search_terms(id) ON DELETE CASCADE,
-    platform TEXT NOT NULL, -- 'chatgpt', 'perplexity', 'gemini', 'claude'
+    platform TEXT NOT NULL, -- 'perplexity', 'gemini', 'claude'
     query_text TEXT NOT NULL,
     response_text TEXT NOT NULL,
     position INTEGER, -- 1-10 ranking position, NULL if not mentioned
@@ -213,7 +211,6 @@ CREATE INDEX idx_search_terms_website_active ON search_terms(website_id, is_acti
 ```json
 // config/api-keys.json
 {
-  "openai": "sk-your-openai-key",
   "anthropic": "sk-ant-your-anthropic-key",
   "google": "your-google-ai-key",
   "perplexity": "pplx-your-perplexity-key"
@@ -227,7 +224,7 @@ CREATE INDEX idx_search_terms_website_active ON search_terms(website_id, is_acti
     "data_retention_days": 365
   },
   "monitoring": {
-    "default_platforms": ["chatgpt", "perplexity", "gemini", "claude"],
+    "default_platforms": ["perplexity", "gemini", "claude"],
     "request_delay_ms": 2000,
     "max_retries": 3
   },
@@ -273,7 +270,6 @@ node_modules/
 │   ├── services/
 │   │   ├── ai-platforms/
 │   │   │   ├── base.service.js
-│   │   │   ├── openai.service.js
 │   │   │   ├── anthropic.service.js
 │   │   │   ├── google.service.js
 │   │   │   └── perplexity.service.js
@@ -467,40 +463,35 @@ class BaseAIService {
 module.exports = BaseAIService;
 ```
 
-#### OpenAI Service Implementation
+#### Anthropic Service Implementation
 ```javascript
-// services/ai-platforms/openai.service.js
-const OpenAI = require('openai');
+// services/ai-platforms/anthropic.service.js
+const Anthropic = require('@anthropic-ai/sdk');
 const BaseAIService = require('./base.service');
 
-class OpenAIService extends BaseAIService {
+class AnthropicService extends BaseAIService {
   constructor(apiKey) {
-    super('chatgpt', apiKey);
-    this.client = new OpenAI({ apiKey });
-    this.model = 'gpt-4';
+    super('claude', apiKey);
+    this.client = new Anthropic({ apiKey });
+    this.model = 'claude-3-sonnet-20240229';
   }
 
   async queryPlatform(searchTerm, context = {}) {
     const startTime = Date.now();
     
     try {
-      const response = await this.client.chat.completions.create({
+      const response = await this.client.messages.create({
         model: this.model,
+        max_tokens: 1000,
         messages: [
           {
-            role: 'system',
-            content: 'You are a helpful assistant providing comprehensive information about user queries. Include specific brands, companies, and products when relevant. Provide detailed, well-researched responses with multiple perspectives.'
-          },
-          {
             role: 'user',
-            content: searchTerm
+            content: `Please provide comprehensive information about: ${searchTerm}. Include specific brands, companies, and products when relevant. Provide detailed, well-researched responses with multiple perspectives and current information.`
           }
-        ],
-        max_tokens: 1000,
-        temperature: 0.7
+        ]
       });
 
-      const content = response.choices[0]?.message?.content || '';
+      const content = response.content[0]?.text || '';
       const brandTerms = context.brandTerms || [];
       const citations = this.extractCitations(content);
       const position = this.extractPosition(content, brandTerms);
@@ -515,21 +506,197 @@ class OpenAIService extends BaseAIService {
         citations: citations,
         responseLength: content.length,
         processingTime: Date.now() - startTime,
-        tokensUsed: response.usage?.total_tokens || 0,
-        apiCost: this.calculateCost(response.usage?.total_tokens || 0)
+        tokensUsed: response.usage?.output_tokens || 0,
+        apiCost: this.calculateCost(response.usage?.input_tokens || 0, response.usage?.output_tokens || 0)
       };
     } catch (error) {
-      throw new Error(`OpenAI API Error: ${error.message}`);
+      throw new Error(`Anthropic API Error: ${error.message}`);
+    }
+  }
+
+  calculateCost(inputTokens, outputTokens) {
+    // Claude-3 Sonnet pricing: $3 per million input tokens, $15 per million output tokens
+    const inputCost = (inputTokens / 1000000) * 3;
+    const outputCost = (outputTokens / 1000000) * 15;
+    return inputCost + outputCost;
+  }
+}
+
+module.exports = AnthropicService;
+```
+
+#### Perplexity Service Implementation
+```javascript
+// services/ai-platforms/perplexity.service.js
+const axios = require('axios');
+const BaseAIService = require('./base.service');
+
+class PerplexityService extends BaseAIService {
+  constructor(apiKey) {
+    super('perplexity', apiKey);
+    this.client = axios.create({
+      baseURL: 'https://api.perplexity.ai',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    this.model = 'llama-3.1-sonar-large-128k-online';
+  }
+
+  async queryPlatform(searchTerm, context = {}) {
+    const startTime = Date.now();
+    
+    try {
+      const response = await this.client.post('/chat/completions', {
+        model: this.model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful assistant that provides comprehensive, up-to-date information with citations. Always include relevant brands, companies, and products in your responses.'
+          },
+          {
+            role: 'user',
+            content: searchTerm
+          }
+        ],
+        max_tokens: 1000,
+        temperature: 0.7,
+        search_domain_filter: ["perplexity.ai"],
+        return_citations: true,
+        search_recency_filter: "month"
+      });
+
+      const content = response.data.choices[0]?.message?.content || '';
+      const brandTerms = context.brandTerms || [];
+      const citations = this.extractCitations(content);
+      const position = this.extractPosition(content, brandTerms);
+      
+      return {
+        platform: this.platform,
+        query: searchTerm,
+        response: content,
+        position: position,
+        sentiment: this.analyzeSentiment(content, brandTerms),
+        confidence: this.calculateConfidence(content, position, citations),
+        citations: citations,
+        responseLength: content.length,
+        processingTime: Date.now() - startTime,
+        tokensUsed: response.data.usage?.total_tokens || 0,
+        apiCost: this.calculateCost(response.data.usage?.total_tokens || 0)
+      };
+    } catch (error) {
+      throw new Error(`Perplexity API Error: ${error.message}`);
     }
   }
 
   calculateCost(tokens) {
-    // GPT-4 pricing: ~$0.03 per 1K tokens (mixed input/output)
-    return (tokens / 1000) * 0.03;
+    // Perplexity pricing: ~$1 per million tokens for sonar models
+    return (tokens / 1000000) * 1;
   }
 }
 
-module.exports = OpenAIService;
+module.exports = PerplexityService;
+```
+
+#### Google Service Implementation
+```javascript
+// services/ai-platforms/google.service.js
+const { GenerativeServiceClient } = require('@google-ai/generativelanguage');
+const BaseAIService = require('./base.service');
+
+class GoogleAIService extends BaseAIService {
+  constructor(apiKey) {
+    super('gemini', apiKey);
+    this.client = new GenerativeServiceClient({
+      authClient: {
+        getAccessToken: () => Promise.resolve({ access_token: apiKey })
+      }
+    });
+    this.model = 'models/gemini-1.5-pro-latest';
+  }
+
+  async queryPlatform(searchTerm, context = {}) {
+    const startTime = Date.now();
+    
+    try {
+      const request = {
+        model: this.model,
+        contents: [{
+          parts: [{
+            text: `Please provide comprehensive information about: ${searchTerm}. Include specific brands, companies, and products when relevant. Provide detailed, well-researched responses with multiple perspectives and current information where possible.`
+          }]
+        }],
+        generationConfig: {
+          maxOutputTokens: 1000,
+          temperature: 0.7,
+        }
+      };
+
+      const response = await this.client.generateContent(request);
+      const content = response[0].candidates[0]?.content?.parts[0]?.text || '';
+      const brandTerms = context.brandTerms || [];
+      const citations = this.extractCitations(content);
+      const position = this.extractPosition(content, brandTerms);
+      
+      return {
+        platform: this.platform,
+        query: searchTerm,
+        response: content,
+        position: position,
+        sentiment: this.analyzeSentiment(content, brandTerms),
+        confidence: this.calculateConfidence(content, position, citations),
+        citations: citations,
+        responseLength: content.length,
+        processingTime: Date.now() - startTime,
+        tokensUsed: response[0].usageMetadata?.totalTokenCount || 0,
+        apiCost: this.calculateCost(response[0].usageMetadata?.totalTokenCount || 0)
+      };
+    } catch (error) {
+      throw new Error(`Google AI API Error: ${error.message}`);
+    }
+  }
+
+  calculateCost(tokens) {
+    // Gemini Pro pricing: ~$0.5 per million tokens
+    return (tokens / 1000000) * 0.5;
+  }
+}
+
+module.exports = GoogleAIService;
+```
+
+#### AI Service Factory
+```javascript
+// services/ai-platforms/index.js
+const AnthropicService = require('./anthropic.service');
+const GoogleAIService = require('./google.service');
+const PerplexityService = require('./perplexity.service');
+
+class AIServiceFactory {
+  getService(platform, apiKey) {
+    if (!apiKey) {
+      throw new Error(`API key not configured for ${platform}`);
+    }
+
+    switch (platform.toLowerCase()) {
+      case 'claude':
+        return new AnthropicService(apiKey);
+      case 'gemini':
+        return new GoogleAIService(apiKey);
+      case 'perplexity':
+        return new PerplexityService(apiKey);
+      default:
+        throw new Error(`Unsupported platform: ${platform}`);
+    }
+  }
+
+  getSupportedPlatforms() {
+    return ['claude', 'gemini', 'perplexity'];
+  }
+}
+
+module.exports = { AIServiceFactory };
 ```
 
 #### Monitoring Service
@@ -552,7 +719,7 @@ class MonitoringService {
       const searchTerms = await SearchTerm.findByWebsiteId(websiteId);
       const brandTerms = [website.name, ...website.name.split(' ')];
       
-      const platforms = platformsToQuery || website.platforms_monitored || ['chatgpt', 'perplexity', 'gemini', 'claude'];
+      const platforms = platformsToQuery || website.platforms_monitored || ['perplexity', 'gemini', 'claude'];
       
       const results = [];
       
@@ -695,7 +862,7 @@ class ConfigService {
         data_retention_days: 365
       },
       monitoring: {
-        default_platforms: ["chatgpt", "perplexity", "gemini", "claude"],
+        default_platforms: ["perplexity", "gemini", "claude"],
         request_delay_ms: 2000,
         max_retries: 3
       },
@@ -812,21 +979,75 @@ class AnalyticsService {
       if (mention.sentiment === 'neutral') stats.sentimentNeutral++;
     });
 
-    // Calculate averages
+    // Calculate averages for each platform
     Object.keys(platformStats).forEach(platform => {
       const stats = platformStats[platform];
       if (stats.positionedMentions > 0) {
         stats.averagePosition = stats.averagePosition / stats.positionedMentions;
+      } else {
+        stats.averagePosition = null;
       }
+      
       if (stats.totalMentions > 0) {
         stats.avgConfidence = stats.avgConfidence / stats.totalMentions;
       }
+      
       stats.visibilityScore = stats.totalMentions > 0 
         ? (stats.positionedMentions / stats.totalMentions) * 100 
         : 0;
     });
 
     return platformStats;
+  }
+
+  async calculateRankingTrends(websiteId, timeframeDays) {
+    // Calculate ranking trends over time across Perplexity, Gemini, and Claude
+    const trends = {};
+    const platforms = ['perplexity', 'gemini', 'claude'];
+    
+    for (const platform of platforms) {
+      const snapshots = await AnalyticsSnapshot.findByWebsitePlatformAndDays(
+        websiteId, 
+        platform, 
+        timeframeDays
+      );
+      
+      trends[platform] = {
+        visibilityTrend: this.calculateTrendFromSnapshots(snapshots, 'average_position'),
+        positionTrend: this.calculateTrendFromSnapshots(snapshots, 'average_position'),
+        mentionsTrend: this.calculateTrendFromSnapshots(snapshots, 'total_mentions')
+      };
+    }
+    
+    return trends;
+  }
+
+  async calculateSentimentAnalysis(mentions) {
+    const sentimentByPlatform = {};
+    const platforms = ['perplexity', 'gemini', 'claude'];
+    
+    platforms.forEach(platform => {
+      const platformMentions = mentions.filter(m => m.platform === platform);
+      const total = platformMentions.length;
+      
+      if (total > 0) {
+        sentimentByPlatform[platform] = {
+          positive: platformMentions.filter(m => m.sentiment === 'positive').length,
+          negative: platformMentions.filter(m => m.sentiment === 'negative').length,
+          neutral: platformMentions.filter(m => m.sentiment === 'neutral').length,
+          positivePercentage: (platformMentions.filter(m => m.sentiment === 'positive').length / total) * 100,
+          negativePercentage: (platformMentions.filter(m => m.sentiment === 'negative').length / total) * 100,
+          neutralPercentage: (platformMentions.filter(m => m.sentiment === 'neutral').length / total) * 100
+        };
+      } else {
+        sentimentByPlatform[platform] = {
+          positive: 0, negative: 0, neutral: 0,
+          positivePercentage: 0, negativePercentage: 0, neutralPercentage: 0
+        };
+      }
+    });
+    
+    return sentimentByPlatform;
   }
 
   async calculateCompetitiveAnalysis(websiteId, competitors, startDate) {
@@ -840,21 +1061,99 @@ class AnalyticsService {
         averagePosition: this.calculateAveragePosition(competitorMentions),
         visibilityScore: this.calculateVisibilityScore(competitorMentions),
         top3Count: competitorMentions.filter(m => m.position && m.position <= 3).length,
-        platformCoverage: [...new Set(competitorMentions.map(m => m.platform))].length
+        platformCoverage: [...new Set(competitorMentions.map(m => m.platform))].length,
+        platformPerformance: this.calculateCompetitorPlatformBreakdown(competitorMentions)
       };
     }
     
     return competitorAnalysis;
   }
 
+  calculateCompetitorPlatformBreakdown(mentions) {
+    const platforms = ['perplexity', 'gemini', 'claude'];
+    const breakdown = {};
+    
+    platforms.forEach(platform => {
+      const platformMentions = mentions.filter(m => m.platform === platform);
+      breakdown[platform] = {
+        mentions: platformMentions.length,
+        averagePosition: this.calculateAveragePosition(platformMentions),
+        top3Count: platformMentions.filter(m => m.position && m.position <= 3).length
+      };
+    });
+    
+    return breakdown;
+  }
+
   async identifyContentGaps(mentions, competitors) {
-    // Analyze where competitors rank but client doesn't
+    // Analyze where competitors rank but client doesn't across Perplexity, Gemini, and Claude
     const gaps = [];
     
-    // This would involve comparing client mentions vs competitor mentions
-    // and identifying search terms where competitors consistently outrank
+    // Group client mentions by search term and platform
+    const clientMentionMap = new Map();
+    mentions.forEach(mention => {
+      const key = `${mention.search_term_id}-${mention.platform}`;
+      clientMentionMap.set(key, mention);
+    });
+    
+    // Check competitor performance vs client for same terms
+    for (const competitor of competitors) {
+      const competitorMentions = await AIMention.findByCompetitor(competitor.id);
+      
+      competitorMentions.forEach(competitorMention => {
+        const key = `${competitorMention.search_term_id}-${competitorMention.platform}`;
+        const clientMention = clientMentionMap.get(key);
+        
+        // Gap identified: competitor ranks but client doesn't, or competitor ranks higher
+        if (!clientMention && competitorMention.position && competitorMention.position <= 5) {
+          gaps.push({
+            searchTermId: competitorMention.search_term_id,
+            platform: competitorMention.platform,
+            competitor: competitor.name,
+            competitorPosition: competitorMention.position,
+            clientPosition: null,
+            gapType: 'not_mentioned',
+            opportunity: 'high'
+          });
+        } else if (clientMention && competitorMention.position && 
+                   clientMention.position && competitorMention.position < clientMention.position) {
+          gaps.push({
+            searchTermId: competitorMention.search_term_id,
+            platform: competitorMention.platform,
+            competitor: competitor.name,
+            competitorPosition: competitorMention.position,
+            clientPosition: clientMention.position,
+            gapType: 'outranked',
+            opportunity: competitorMention.position <= 3 ? 'high' : 'medium'
+          });
+        }
+      });
+    }
     
     return gaps;
+  }
+
+  calculateAveragePosition(mentions) {
+    const positioned = mentions.filter(m => m.position !== null);
+    return positioned.length > 0 
+      ? positioned.reduce((sum, m) => sum + m.position, 0) / positioned.length 
+      : null;
+  }
+
+  calculateVisibilityScore(mentions) {
+    const total = mentions.length;
+    const positioned = mentions.filter(m => m.position !== null).length;
+    return total > 0 ? (positioned / total) * 100 : 0;
+  }
+
+  calculateTrendFromSnapshots(snapshots, metric) {
+    if (snapshots.length < 2) return 0;
+    
+    const sorted = snapshots.sort((a, b) => new Date(a.snapshot_date) - new Date(b.snapshot_date));
+    const oldest = sorted[0][metric] || 0;
+    const newest = sorted[sorted.length - 1][metric] || 0;
+    
+    return oldest > 0 ? ((newest - oldest) / oldest) * 100 : 0;
   }
 
   parseTimeframe(timeframe) {
@@ -883,6 +1182,7 @@ const path = require('path');
 class ExportService {
   constructor() {
     this.exportDir = path.join(__dirname, '../../exports');
+    this.supportedPlatforms = ['perplexity', 'gemini', 'claude'];
   }
 
   async generateClientReport(websiteId, options = {}) {
@@ -890,52 +1190,121 @@ class ExportService {
       format = 'pdf',
       timeframe = '30d',
       includeCompetitors = true,
-      includeCharts = true
+      includeCharts = true,
+      includePlatformBreakdown = true,
+      clientBranding = {}
     } = options;
 
     const analytics = await this.getReportData(websiteId, timeframe);
+    const website = await this.getWebsiteInfo(websiteId);
     
     switch (format) {
       case 'pdf':
-        return this.generatePDFReport(analytics, options);
+        return this.generatePDFReport(analytics, website, options);
       case 'excel':
-        return this.generateExcelReport(analytics, options);
+        return this.generateExcelReport(analytics, website, options);
       case 'csv':
-        return this.generateCSVReport(analytics, options);
+        return this.generateCSVReport(analytics, website, options);
       default:
         throw new Error(`Unsupported export format: ${format}`);
     }
   }
 
-  async generatePDFReport(analytics, options) {
-    const doc = new PDFDocument();
-    const filename = `report-${Date.now()}.pdf`;
+  async generatePDFReport(analytics, website, options) {
+    const doc = new PDFDocument({ margin: 50 });
+    const filename = `${website.name}-report-${Date.now()}.pdf`;
     const filepath = path.join(this.exportDir, filename);
     
     doc.pipe(require('fs').createWriteStream(filepath));
     
     // Report Header
-    doc.fontSize(20).text('WordsRank AI Platform Monitoring Report', 50, 50);
-    doc.fontSize(12).text(`Generated: ${new Date().toLocaleDateString()}`, 50, 80);
+    doc.fontSize(24).text('AI Platform Monitoring Report', 50, 50);
+    doc.fontSize(16).text(`Client: ${website.name}`, 50, 85);
+    doc.fontSize(12).text(`Generated: ${new Date().toLocaleDateString()}`, 50, 110);
+    doc.text(`Monitoring Period: ${options.timeframe || '30 days'}`, 50, 125);
     
     // Executive Summary
-    doc.fontSize(16).text('Executive Summary', 50, 120);
-    doc.fontSize(12).text(`Total Mentions: ${analytics.overview.totalMentions}`, 50, 150);
-    doc.text(`Visibility Score: ${analytics.overview.visibilityScore.toFixed(1)}%`, 50, 170);
-    doc.text(`Average Position: ${analytics.overview.averagePosition || 'N/A'}`, 50, 190);
+    doc.fontSize(18).text('Executive Summary', 50, 160);
     
-    // Platform Performance
-    let yPosition = 230;
-    doc.fontSize(16).text('Platform Performance', 50, yPosition);
+    const overview = analytics.overview;
+    doc.fontSize(12)
+       .text(`• Total Brand Mentions: ${overview.totalMentions}`, 70, 190)
+       .text(`• Brand Visibility Score: ${overview.visibilityScore.toFixed(1)}%`, 70, 210)
+       .text(`• Average Position: ${overview.averagePosition ? `#${overview.averagePosition}` : 'Not ranked'}`, 70, 230)
+       .text(`• Top 3 Rankings: ${overview.top3Rankings} (${overview.totalMentions > 0 ? (overview.top3Rankings / overview.totalMentions * 100).toFixed(1) : 0}%)`, 70, 250);
     
+    // Platform Performance Section
+    let yPosition = 290;
+    doc.fontSize(18).text('Platform Performance Analysis', 50, yPosition);
+    yPosition += 35;
+    
+    // Performance across Perplexity, Gemini, and Claude
     Object.entries(analytics.platformPerformance).forEach(([platform, stats]) => {
-      yPosition += 30;
-      doc.fontSize(12).text(`${platform.toUpperCase()}:`, 50, yPosition);
-      doc.text(`Mentions: ${stats.totalMentions}`, 70, yPosition + 15);
-      doc.text(`Avg Position: ${stats.averagePosition?.toFixed(1) || 'N/A'}`, 70, yPosition + 30);
-      doc.text(`Top 3 Rankings: ${stats.top3Count}`, 70, yPosition + 45);
-      yPosition += 60;
+      const platformName = this.getPlatformDisplayName(platform);
+      
+      doc.fontSize(14).text(`${platformName}`, 70, yPosition);
+      yPosition += 20;
+      
+      doc.fontSize(11)
+         .text(`Mentions: ${stats.totalMentions}`, 90, yPosition)
+         .text(`Visibility: ${stats.visibilityScore.toFixed(1)}%`, 200, yPosition)
+         .text(`Avg Position: ${stats.averagePosition ? `#${stats.averagePosition.toFixed(1)}` : 'N/A'}`, 300, yPosition)
+         .text(`Top 3: ${stats.top3Count}`, 420, yPosition);
+      
+      yPosition += 15;
+      
+      // Sentiment breakdown
+      doc.fontSize(10)
+         .fillColor('green').text(`Positive: ${stats.sentimentPositive}`, 90, yPosition)
+         .fillColor('red').text(`Negative: ${stats.sentimentNegative}`, 150, yPosition)
+         .fillColor('gray').text(`Neutral: ${stats.sentimentNeutral}`, 210, yPosition)
+         .fillColor('black').text(`Cost: $${stats.totalCost.toFixed(2)}`, 270, yPosition);
+      
+      yPosition += 25;
+      
+      // Add page break if needed
+      if (yPosition > 700) {
+        doc.addPage();
+        yPosition = 50;
+      }
     });
+    
+    // Competitive Analysis (if included)
+    if (options.includeCompetitors && analytics.competitiveAnalysis) {
+      doc.addPage();
+      doc.fontSize(18).text('Competitive Analysis', 50, 50);
+      
+      yPosition = 85;
+      Object.entries(analytics.competitiveAnalysis).forEach(([competitor, data]) => {
+        doc.fontSize(14).text(`${competitor}`, 70, yPosition);
+        yPosition += 20;
+        
+        doc.fontSize(11)
+           .text(`Mentions: ${data.totalMentions}`, 90, yPosition)
+           .text(`Visibility: ${data.visibilityScore.toFixed(1)}%`, 200, yPosition)
+           .text(`Avg Position: ${data.averagePosition ? `#${data.averagePosition.toFixed(1)}` : 'N/A'}`, 300, yPosition)
+           .text(`Top 3: ${data.top3Count}`, 420, yPosition);
+        
+        yPosition += 30;
+      });
+    }
+    
+    // Strategic Recommendations
+    doc.addPage();
+    doc.fontSize(18).text('Strategic Recommendations', 50, 50);
+    
+    const recommendations = this.generateRecommendations(analytics);
+    yPosition = 85;
+    
+    recommendations.forEach((rec, index) => {
+      doc.fontSize(12).text(`${index + 1}. ${rec}`, 70, yPosition);
+      yPosition += 25;
+    });
+    
+    // Footer
+    doc.fontSize(10)
+       .fillColor('gray')
+       .text('Generated by WordsRank - AI Platform Monitoring Tool', 50, doc.page.height - 50);
     
     doc.end();
     
@@ -946,32 +1315,99 @@ class ExportService {
     };
   }
 
-  async generateExcelReport(analytics, options) {
+  async generateExcelReport(analytics, website, options) {
     const workbook = new ExcelJS.Workbook();
     
-    // Overview Sheet
-    const overviewSheet = workbook.addWorksheet('Overview');
-    overviewSheet.addRow(['Metric', 'Value']);
-    overviewSheet.addRow(['Total Mentions', analytics.overview.totalMentions]);
-    overviewSheet.addRow(['Visibility Score', `${analytics.overview.visibilityScore.toFixed(1)}%`]);
-    overviewSheet.addRow(['Average Position', analytics.overview.averagePosition || 'N/A']);
-    overviewSheet.addRow(['Top 3 Rankings', analytics.overview.top3Rankings]);
+    // Metadata
+    workbook.creator = 'WordsRank';
+    workbook.created = new Date();
+    
+    // Executive Summary Sheet
+    const summarySheet = workbook.addWorksheet('Executive Summary');
+    summarySheet.addRow(['AI Platform Monitoring Report']);
+    summarySheet.addRow([`Client: ${website.name}`]);
+    summarySheet.addRow([`Generated: ${new Date().toLocaleDateString()}`]);
+    summarySheet.addRow([]);
+    summarySheet.addRow(['Metric', 'Value']);
+    summarySheet.addRow(['Total Mentions', analytics.overview.totalMentions]);
+    summarySheet.addRow(['Visibility Score', `${analytics.overview.visibilityScore.toFixed(1)}%`]);
+    summarySheet.addRow(['Average Position', analytics.overview.averagePosition || 'Not ranked']);
+    summarySheet.addRow(['Top 3 Rankings', analytics.overview.top3Rankings]);
+    summarySheet.addRow(['Platform Coverage', `${analytics.overview.platformCoverage}/3 platforms`]);
+    summarySheet.addRow(['Sentiment Score', `${analytics.overview.sentimentScore.toFixed(1)}%`]);
+    summarySheet.addRow(['Total API Cost', `$${analytics.overview.totalApiCost.toFixed(2)}`]);
     
     // Platform Performance Sheet
     const platformSheet = workbook.addWorksheet('Platform Performance');
-    platformSheet.addRow(['Platform', 'Total Mentions', 'Average Position', 'Top 3 Count', 'Visibility Score']);
+    platformSheet.addRow([
+      'Platform', 'Total Mentions', 'Visibility Score', 'Average Position', 
+      'Top 3 Count', 'Top 5 Count', 'Positive Sentiment', 'Negative Sentiment', 
+      'Neutral Sentiment', 'Total Cost', 'Avg Confidence'
+    ]);
     
     Object.entries(analytics.platformPerformance).forEach(([platform, stats]) => {
       platformSheet.addRow([
-        platform.toUpperCase(),
+        this.getPlatformDisplayName(platform),
         stats.totalMentions,
-        stats.averagePosition?.toFixed(1) || 'N/A',
+        `${stats.visibilityScore.toFixed(1)}%`,
+        stats.averagePosition ? stats.averagePosition.toFixed(1) : 'N/A',
         stats.top3Count,
-        `${stats.visibilityScore.toFixed(1)}%`
+        stats.top5Count,
+        stats.sentimentPositive,
+        stats.sentimentNegative,
+        stats.sentimentNeutral,
+        `$${stats.totalCost.toFixed(2)}`,
+        stats.avgConfidence.toFixed(2)
       ]);
     });
     
-    const filename = `report-${Date.now()}.xlsx`;
+    // Competitive Analysis Sheet (if included)
+    if (options.includeCompetitors && analytics.competitiveAnalysis) {
+      const competitorSheet = workbook.addWorksheet('Competitive Analysis');
+      competitorSheet.addRow([
+        'Competitor', 'Total Mentions', 'Visibility Score', 'Average Position', 
+        'Top 3 Count', 'Platform Coverage'
+      ]);
+      
+      Object.entries(analytics.competitiveAnalysis).forEach(([competitor, data]) => {
+        competitorSheet.addRow([
+          competitor,
+          data.totalMentions,
+          `${data.visibilityScore.toFixed(1)}%`,
+          data.averagePosition ? data.averagePosition.toFixed(1) : 'N/A',
+          data.top3Count,
+          data.platformCoverage
+        ]);
+      });
+    }
+    
+    // Sentiment Analysis Sheet
+    const sentimentSheet = workbook.addWorksheet('Sentiment Analysis');
+    sentimentSheet.addRow(['Platform', 'Positive', 'Negative', 'Neutral', 'Positive %', 'Negative %', 'Neutral %']);
+    
+    Object.entries(analytics.sentimentAnalysis).forEach(([platform, sentiment]) => {
+      sentimentSheet.addRow([
+        this.getPlatformDisplayName(platform),
+        sentiment.positive,
+        sentiment.negative,
+        sentiment.neutral,
+        `${sentiment.positivePercentage.toFixed(1)}%`,
+        `${sentiment.negativePercentage.toFixed(1)}%`,
+        `${sentiment.neutralPercentage.toFixed(1)}%`
+      ]);
+    });
+    
+    // Apply styling
+    [summarySheet, platformSheet].forEach(sheet => {
+      if (sheet.getRow(1)) {
+        sheet.getRow(1).font = { bold: true, size: 14 };
+      }
+      sheet.columns.forEach(column => {
+        column.width = 15;
+      });
+    });
+    
+    const filename = `${website.name}-report-${Date.now()}.xlsx`;
     const filepath = path.join(this.exportDir, filename);
     
     await workbook.xlsx.writeFile(filepath);
@@ -983,11 +1419,103 @@ class ExportService {
     };
   }
 
+  async generateCSVReport(analytics, website, options) {
+    const csvData = [];
+    
+    // Header
+    csvData.push(['AI Platform Monitoring Report']);
+    csvData.push([`Client: ${website.name}`]);
+    csvData.push([`Generated: ${new Date().toLocaleDateString()}`]);
+    csvData.push([]);
+    
+    // Platform Performance
+    csvData.push(['Platform Performance']);
+    csvData.push(['Platform', 'Mentions', 'Visibility %', 'Avg Position', 'Top 3', 'Cost']);
+    
+    Object.entries(analytics.platformPerformance).forEach(([platform, stats]) => {
+      csvData.push([
+        this.getPlatformDisplayName(platform),
+        stats.totalMentions,
+        stats.visibilityScore.toFixed(1),
+        stats.averagePosition ? stats.averagePosition.toFixed(1) : 'N/A',
+        stats.top3Count,
+        stats.totalCost.toFixed(2)
+      ]);
+    });
+    
+    const csvContent = csvData.map(row => row.join(',')).join('\n');
+    const filename = `${website.name}-report-${Date.now()}.csv`;
+    const filepath = path.join(this.exportDir, filename);
+    
+    await fs.writeFile(filepath, csvContent);
+    
+    return {
+      filepath,
+      filename,
+      format: 'csv'
+    };
+  }
+
+  getPlatformDisplayName(platform) {
+    const names = {
+      'perplexity': 'Perplexity',
+      'gemini': 'Google Gemini',
+      'claude': 'Anthropic Claude'
+    };
+    return names[platform] || platform;
+  }
+
+  generateRecommendations(analytics) {
+    const recommendations = [];
+    const platforms = Object.keys(analytics.platformPerformance);
+    
+    // Visibility recommendations
+    if (analytics.overview.visibilityScore < 50) {
+      recommendations.push('Focus on increasing brand visibility across all AI platforms - currently mentioned in less than 50% of queries');
+    }
+    
+    // Platform-specific recommendations
+    platforms.forEach(platform => {
+      const stats = analytics.platformPerformance[platform];
+      const platformName = this.getPlatformDisplayName(platform);
+      
+      if (stats.visibilityScore < 30) {
+        recommendations.push(`Improve presence on ${platformName} - low visibility score of ${stats.visibilityScore.toFixed(1)}%`);
+      }
+      
+      if (stats.averagePosition > 5 && stats.totalMentions > 0) {
+        recommendations.push(`Optimize content strategy for ${platformName} - average position is ${stats.averagePosition.toFixed(1)}`);
+      }
+      
+      if (stats.sentimentNegative > stats.sentimentPositive) {
+        recommendations.push(`Address negative sentiment on ${platformName} - more negative than positive mentions`);
+      }
+    });
+    
+    // Competitive recommendations
+    if (analytics.contentGaps && analytics.contentGaps.length > 0) {
+      recommendations.push(`Address ${analytics.contentGaps.length} content gaps where competitors outrank your brand`);
+    }
+    
+    // Cost optimization
+    const totalCost = analytics.overview.totalApiCost;
+    if (totalCost > 50) {
+      recommendations.push(`Consider optimizing API usage - monthly cost is $${totalCost.toFixed(2)}`);
+    }
+    
+    return recommendations.length > 0 ? recommendations : ['Continue current strategy - performance is strong across all platforms'];
+  }
+
   async getReportData(websiteId, timeframe) {
     const AnalyticsService = require('./analytics.service');
     const analyticsService = new AnalyticsService();
     
     return analyticsService.getDashboardAnalytics(websiteId, timeframe);
+  }
+
+  async getWebsiteInfo(websiteId) {
+    const { Website } = require('../models');
+    return Website.findById(websiteId);
   }
 }
 
@@ -1016,7 +1544,6 @@ module.exports = ExportService;
 │   │   │   └── ContentGapAnalysis.tsx
 │   │   ├── platforms/
 │   │   │   ├── PlatformPage.tsx
-│   │   │   ├── ChatGPTPage.tsx
 │   │   │   ├── PerplexityPage.tsx
 │   │   │   ├── GeminiPage.tsx
 │   │   │   └── ClaudePage.tsx
@@ -1084,9 +1611,8 @@ All AI platform integrations follow the same interface pattern defined in the Ba
 5. Cost Calculation: Track API usage costs for budget management
 
 ### Supported Platforms
-- OpenAI (ChatGPT): GPT-4 model for comprehensive responses
-- Anthropic (Claude): Claude-3 for detailed analytical responses
-- Google AI (Gemini): Gemini Pro for search-integrated responses
+- Anthropic (Claude): Claude-3 for detailed analytical responses with reasoning
+- Google AI (Gemini): Gemini Pro for comprehensive responses
 - Perplexity: Real-time search with citations and current data
 
 ### Platform-Specific Features
@@ -1110,7 +1636,6 @@ Each platform page provides:
 │ 🎯 Rankings & Positions     │
 ├─────────────────────────────┤
 │ AI PLATFORMS                │
-│ 💬 ChatGPT                  │
 │ 🔍 Perplexity               │
 │ ◆ Gemini                    │
 │ 🎭 Claude                   │
@@ -1184,20 +1709,20 @@ interface DashboardStats {
 
 #### 2. Advanced Analytics
 **Executive Summary (Full Width)**
-- AI-generated insights highlighting key trends and opportunities
-- Strategic recommendations based on data analysis
+- AI-generated insights highlighting key trends and opportunities across Perplexity, Gemini, and Claude
+- Strategic recommendations based on data analysis from all 3 platforms
 - Content gap identification and prioritization
 
 **Intelligence Grid (2 Columns)**
 <pre>┌─────────────────────────────────┬─────────────────────────────────┐
 │ Market Position Analysis        │ Performance Breakdown           │
-│ - Share of voice analysis      │ - Platform performance heatmap │
-│ - Competitive positioning      │ - Sentiment trends chart       │
-│ - Market opportunity scoring   │ - Historical performance        │
+│ - Share of voice analysis      │ - 3-platform performance heatmap│
+│ - Competitive positioning      │ - Sentiment trends chart        │
+│ - Market opportunity scoring   │ - Historical performance         │
 └─────────────────────────────────┴─────────────────────────────────┘</pre>
 **Content Strategy Intelligence (Full Width)**
-- Content gap opportunity matrix with difficulty scoring
-- ROI predictions for different optimization strategies
+- Content gap opportunity matrix with difficulty scoring across all platforms
+- ROI predictions for different optimization strategies per platform
 - Actionable recommendations with implementation timelines
 
 #### 3. Rankings & Positions
@@ -1205,7 +1730,6 @@ interface DashboardStats {
 ```typescript
 interface RankingData {
   searchTerm: string;
-  chatgptPosition: number | null;
   perplexityPosition: number | null;
   geminiPosition: number | null;
   claudePosition: number | null;
@@ -1217,10 +1741,11 @@ interface RankingData {
 ```
 
 **Platform Performance Cards (Grid)**
-- Individual cards for each AI platform
+- Individual cards for Perplexity, Gemini, and Claude
 - Platform-specific metrics and trends
-- Position distribution charts
+- Position distribution charts for each platform
 - Manual refresh buttons for each platform
+- Platform-specific insights and optimization recommendations
 
 #### 4. Individual Platform Pages
 Each platform page follows this structure:
@@ -1259,7 +1784,7 @@ interface Website {
   url: string;
   industry: string;
   description?: string;
-  platformsMonitored: Platform[];
+  platformsMonitored: Platform[];  // Perplexity, Gemini, Claude
   isActive: boolean;
   createdAt: Date;
 }
@@ -1270,7 +1795,7 @@ interface Website {
 - Website URL
 - Industry dropdown for context
 - Description (optional)
-- Platform monitoring checkboxes
+- Platform monitoring checkboxes (Perplexity, Gemini, Claude)
 - Active/Inactive toggle
 
 **Competitor Management**
@@ -1280,7 +1805,7 @@ interface Competitor {
   websiteId: string;
   name: string;
   url: string;
-  platformsMonitored: Platform[];
+  platformsMonitored: Platform[];  // Select from 3 available platforms
   isActive: boolean;
   lastAnalyzed: Date;
 }
@@ -1292,7 +1817,7 @@ interface SearchTerm {
   id: string;
   websiteId: string;
   term: string;
-  platformsMonitored: Platform[];
+  platformsMonitored: Platform[];  // Assign to specific platforms
   isActive: boolean;
   lastQueried: Date;
   avgPosition: number;
@@ -1301,16 +1826,16 @@ interface SearchTerm {
 
 **Features:**
 - Website selection dropdown
-- Terms table with platform selection
+- Terms table with 3-platform selection options
 - Bulk CSV import capability
-- Manual query buttons for testing
+- Manual query buttons for testing across selected platforms
 
 #### 6. Settings Pages
 **API Keys**
 ```typescript
 interface PlatformConfig {
-  platform: Platform;
-  apiKey: string;        // Masked input
+  platform: Platform;       // 'perplexity' | 'gemini' | 'claude'
+  apiKey: string;           // Masked input
   isConfigured: boolean;
   lastTested: Date;
   status: 'valid' | 'invalid' | 'untested';
@@ -1319,18 +1844,20 @@ interface PlatformConfig {
 }
 ```
 
-**Simple configuration for each platform:**
-- Masked API key input
-- Test connection button
-- Usage and cost tracking
+**Configuration for each of the 3 platforms:
+- Perplexity API key configuration with masked input
+- Google AI (Gemini) API key setup with validation
+- Anthropic (Claude) API key management
+- Test connection button for each platform
+- Usage and cost tracking per platform
 - Connection status indicator
 
 **Settings**
 ```typescript
 interface AppSettings {
   dataRetention: '6months' | '1year' | '2years';
-  defaultPlatforms: Platform[];
-  requestDelay: number;      // Delay between API calls
+  defaultPlatforms: Platform[];    // Default: ['perplexity', 'gemini', 'claude']
+  requestDelay: number;            // Delay between API calls (default: 2000ms)
   reportPreferences: {
     defaultFormat: 'pdf' | 'excel' | 'csv';
     includeCharts: boolean;
@@ -1341,6 +1868,11 @@ interface AppSettings {
     monthlyLimit: number;
   };
 }
+```
+
+**Platform Type Definition:**
+```typescript
+type Platform = 'perplexity' | 'gemini' | 'claude';
 ```
 
 ## Component Implementation Examples
@@ -1382,6 +1914,7 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({
     </div>
   );
 };
+
 ```
 
 ### Dashboard Stats Grid Component
@@ -1644,7 +2177,6 @@ npm run dev
     "joi": "^17.9.2",
     "axios": "^1.5.0",
     "cors": "^2.8.5",
-    "openai": "^4.0.0",
     "@anthropic-ai/sdk": "^0.6.0",
     "@google-ai/generativelanguage": "^2.4.0",
     "pdfkit": "^0.13.0",
@@ -1738,8 +2270,8 @@ interface ErrorNotification {
 const errorExamples = [
   {
     type: 'warning',
-    platform: 'chatgpt',
-    message: 'ChatGPT API key not configured',
+    platform: 'claude',
+    message: 'Claude API key not configured',
     action: {
       label: 'Configure API Keys',
       handler: () => navigate('/settings/api-keys')
@@ -1909,11 +2441,11 @@ describe('Monitoring Service', () => {
       
       const result = await monitoringService.queryPlatform(
         searchTerm, 
-        'chatgpt', 
+        'claude', 
         brandTerms
       );
 
-      expect(result).toHaveProperty('platform', 'chatgpt');
+      expect(result).toHaveProperty('platform', 'claude');
       expect(result).toHaveProperty('position');
       expect(result).toHaveProperty('sentiment');
       expect(typeof result.apiCost).toBe('number');
@@ -1925,13 +2457,14 @@ describe('Monitoring Service', () => {
       const content = 'Trello is excellent for project management. Asana is also good.';
       const brandTerms = ['Trello'];
       
-      const service = monitoringService.aiServiceFactory.getService('chatgpt');
+      const servie = monitoringService.aiServiceFactory.getService('claude');
       const position = service.extractPosition(content, brandTerms);
       
       expect(position).toBe(1);
     });
   });
 });
+
 ```
 
 ### Frontend Testing
@@ -2020,7 +2553,6 @@ class WordsRankInstaller {
     const configDir = path.join(process.cwd(), 'config');
     
     const apiKeysTemplate = {
-      openai: "",
       anthropic: "",
       google: "",
       perplexity: ""
@@ -2033,7 +2565,7 @@ class WordsRankInstaller {
         data_retention_days: 365
       },
       monitoring: {
-        default_platforms: ["chatgpt", "perplexity", "gemini", "claude"],
+        default_platforms: ["perplexity", "gemini", "claude"],
         request_delay_ms: 2000,
         max_retries: 3
       },
